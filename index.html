@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QuickJS</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg-light: #f5f5f7;
+      --bg-dark: #0b0c10;
+      --bg-panel-light: #ffffff;
+      --bg-panel-dark: #111318;
+      --border-light: #d0d0d4;
+      --border-dark: #2a2d36;
+      --text-light: #111111;
+      --text-dark: #f5f5f7;
+      --accent: #2563eb;
+      --accent-soft: rgba(37,99,235,0.12);
+      --error: #ef4444;
+      --success: #16a34a;
+      --warning: #f59e0b;
+      --shadow-light: 0 12px 30px rgba(15,23,42,0.12);
+      --shadow-dark: 0 12px 30px rgba(0,0,0,0.6);
+      --code-bg-light: #f9fafb;
+      --code-bg-dark: #05060a;
+      --console-bg-light: #050816;
+      --console-bg-dark: #000000;
+      --console-text-light: #e5e7eb;
+      --console-text-dark: #e5e7eb;
+      --console-border: #1f2937;
+      --badge-bg: rgba(148,163,184,0.16);
+      --badge-text: #64748b;
+    }
+    body[data-theme="light"] {
+      background: var(--bg-light);
+      color: var(--text-light);
+    }
+    body[data-theme="dark"] {
+      background: radial-gradient(circle at top left, #1f2937 0, #020617 45%, #000000 100%);
+      color: var(--text-dark);
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      padding: 16px;
+    }
+    .app-shell {
+      max-width: 1200px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-radius: 999px;
+      backdrop-filter: blur(18px);
+    }
+    body[data-theme="light"] .top-bar {
+      background: rgba(255,255,255,0.9);
+      border: 1px solid rgba(148,163,184,0.35);
+      box-shadow: var(--shadow-light);
+    }
+    body[data-theme="dark"] .top-bar {
+      background: rgba(15,23,42,0.85);
+      border: 1px solid rgba(51,65,85,0.8);
+      box-shadow: var(--shadow-dark);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-mark {
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    body[data-theme="light"] .brand-mark {
+      background: radial-gradient(circle at 0 0, #38bdf8 0, #2563eb 40%, #4f46e5 75%, #0f172a 100%);
+      color: #f9fafb;
+      box-shadow: 0 8px 18px rgba(37,99,235,0.55);
+    }
+    body[data-theme="dark"] .brand-mark {
+      background: radial-gradient(circle at 0 0, #22c55e 0, #0ea5e9 40%, #6366f1 75%, #020617 100%);
+      color: #e5e7eb;
+      box-shadow: 0 10px 24px rgba(15,23,42,0.9);
+    }
+    .brand-text-main {
+      font-weight: 600;
+      font-size: 16px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .brand-text-sub {
+      font-size: 11px;
+      opacity: 0.7;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--badge-bg);
+      color: var(--badge-text);
+    }
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 4px rgba(34,197,94,0.25);
+    }
+    .theme-toggle {
+      border-radius: 999px;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      border: 1px solid rgba(148,163,184,0.6);
+      background: rgba(15,23,42,0.04);
+    }
+    body[data-theme="dark"] .theme-toggle {
+      border-color: rgba(148,163,184,0.9);
+      background: rgba(15,23,42,0.7);
+    }
+    .theme-pill {
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      opacity: 0.7;
+    }
+    .theme-pill.active {
+      background: rgba(148,163,184,0.25);
+      opacity: 1;
+    }
+    .theme-icon {
+      font-size: 12px;
+    }
+    .main-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+      gap: 12px;
+      align-items: stretch;
+    }
+    @media (max-width: 900px) {
+      .main-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+    .panel {
+      border-radius: 18px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+    body[data-theme="light"] .panel {
+      background: var(--bg-panel-light);
+      border: 1px solid var(--border-light);
+      box-shadow: var(--shadow-light);
+    }
+    body[data-theme="dark"] .panel {
+      background: radial-gradient(circle at top left, #020617 0, #020617 35%, #020617 100%);
+      border: 1px solid var(--border-dark);
+      box-shadow: var(--shadow-dark);
+    }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .panel-title {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      opacity: 0.8;
+    }
+    .panel-subtitle {
+      font-size: 11px;
+      opacity: 0.6;
+    }
+    .panel-header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .mode-toggle {
+      display: inline-flex;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.7);
+      overflow: hidden;
+      font-size: 11px;
+    }
+    .mode-toggle button {
+      border: none;
+      background: transparent;
+      padding: 4px 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: inherit;
+      opacity: 0.7;
+    }
+    .mode-toggle button.active {
+      background: rgba(148,163,184,0.2);
+      opacity: 1;
+    }
+    .mode-toggle button span.icon {
+      font-size: 12px;
+    }
+    .hint {
+      font-size: 11px;
+      opacity: 0.6;
+    }
+    .editor-shell {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+    }
+    .drop-zone {
+      border-radius: 12px;
+      border: 1px dashed rgba(148,163,184,0.7);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      cursor: pointer;
+      position: relative;
+    }
+    body[data-theme="dark"] .drop-zone {
+      border-color: rgba(148,163,184,0.9);
+      background: rgba(15,23,42,0.6);
+    }
+    .drop-main {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .drop-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .drop-title {
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .drop-desc {
+      font-size: 11px;
+      opacity: 0.65;
+    }
+    .drop-desc span {
+      font-weight: 500;
+    }
+    .drop-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      opacity: 0.7;
+    }
+    .kbd {
+      border-radius: 6px;
+      padding: 2px 6px;
+      border: 1px solid rgba(148,163,184,0.7);
+      font-size: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    .file-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .file-pill {
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 11px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(148,163,184,0.16);
+      color: var(--badge-text);
+    }
+    .file-pill-type {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      opacity: 0.8;
+    }
+    .file-pill-name {
+      max-width: 160px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .file-pill-remove {
+      cursor: pointer;
+      font-size: 11px;
+      opacity: 0.7;
+    }
+    .code-area-shell {
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(148,163,184,0.7);
+      background: var(--code-bg-light);
+    }
+    body[data-theme="dark"] .code-area-shell {
+      background: var(--code-bg-dark);
+      border-color: rgba(148,163,184,0.9);
+    }
+    .code-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 8px;
+      font-size: 11px;
+      background: rgba(15,23,42,0.04);
+    }
+    body[data-theme="dark"] .code-toolbar {
+      background: rgba(15,23,42,0.8);
+    }
+    .code-toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .code-mode-label {
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      opacity: 0.7;
+    }
+    .code-mode-select {
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.7);
+      background: transparent;
+      color: inherit;
+      font-size: 11px;
+      padding: 2px 8px;
+    }
+    .code-toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .run-button {
+      border-radius: 999px;
+      border: none;
+      padding: 4px 10px;
+      font-size: 11px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      background: var(--accent);
+      color: #f9fafb;
+    }
+    .run-button span.icon {
+      font-size: 12px;
+    }
+    .code-area {
+      width: 100%;
+      min-height: 220px;
+      max-height: 320px;
+      resize: vertical;
+      border: none;
+      outline: none;
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      line-height: 1.4;
+      background: transparent;
+      color: inherit;
+    }
+    .console-shell {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+    }
+    .console-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+    }
+    .console-toolbar-left {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .console-title {
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      opacity: 0.8;
+    }
+    .console-subtitle {
+      font-size: 11px;
+      opacity: 0.6;
+    }
+    .console-toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .console-mode-toggle {
+      display: inline-flex;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.7);
+      overflow: hidden;
+      font-size: 11px;
+    }
+    .console-mode-toggle button {
+      border: none;
+      background: transparent;
+      padding: 4px 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: inherit;
+      opacity: 0.7;
+    }
+    .console-mode-toggle button.active {
+      background: rgba(148,163,184,0.2);
+      opacity: 1;
+    }
+    .console-mode-toggle button span.icon {
+      font-size: 12px;
+    }
+    .console-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .console-clear {
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.7);
+      background: transparent;
+      font-size: 11px;
+      padding: 3px 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .console-clear span.icon {
+      font-size: 12px;
+    }
+    .console-main {
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--console-border);
+      background: var(--console-bg-light);
+      color: var(--console-text-light);
+      display: flex;
+      flex-direction: column;
+      min-height: 260px;
+      max-height: 360px;
+    }
+    body[data-theme="dark"] .console-main {
+      background: var(--console-bg-dark);
+      color: var(--console-text-dark);
+      border-color: rgba(31,41,55,0.9);
+    }
+    .console-output {
+      flex: 1;
+      padding: 8px 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      line-height: 1.4;
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
+    .console-output::-webkit-scrollbar {
+      width: 6px;
+    }
+    .console-output::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .console-output::-webkit-scrollbar-thumb {
+      background: rgba(148,163,184,0.6);
+      border-radius: 999px;
+    }
+    .console-line {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      margin-bottom: 2px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .console-line-prefix {
+      min-width: 40px;
+      opacity: 0.6;
+    }
+    .console-line-content {
+      flex: 1;
+    }
+    .console-line.log .console-line-prefix {
+      color: #22c55e;
+    }
+    .console-line.error .console-line-prefix {
+      color: var(--error);
+    }
+    .console-line.warn .console-line-prefix {
+      color: var(--warning);
+    }
+    .console-line.info .console-line-prefix {
+      color: #38bdf8;
+    }
+    .console-line.system .console-line-prefix {
+      color: #a855f7;
+    }
+    .console-line.error .console-line-content {
+      color: var(--error);
+    }
+    .console-line.warn .console-line-content {
+      color: var(--warning);
+    }
+    .console-line.system .console-line-content {
+      opacity: 0.8;
+    }
+    .console-footer {
+      padding: 4px 8px;
+      font-size: 10px;
+      opacity: 0.6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid rgba(31,41,55,0.9);
+    }
+    .console-footer-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .console-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #22c55e;
+    }
+    .console-footer-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .preview-shell {
+      margin-top: 8px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(148,163,184,0.7);
+      background: #ffffff;
+      min-height: 160px;
+    }
+    body[data-theme="dark"] .preview-shell {
+      background: #020617;
+      border-color: rgba(148,163,184,0.9);
+    }
+    .preview-toolbar {
+      padding: 6px 8px;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(15,23,42,0.04);
+    }
+    body[data-theme="dark"] .preview-toolbar {
+      background: rgba(15,23,42,0.8);
+      color: #e5e7eb;
+    }
+    .preview-toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .preview-label {
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      opacity: 0.7;
+    }
+    .preview-toolbar-right {
+      font-size: 10px;
+      opacity: 0.6;
+    }
+    .preview-frame-shell {
+      border-top: 1px solid rgba(148,163,184,0.4);
+      background: #ffffff;
+      min-height: 130px;
+    }
+    body[data-theme="dark"] .preview-frame-shell {
+      background: #020617;
+      border-color: rgba(148,163,184,0.7);
+    }
+    .preview-frame {
+      width: 100%;
+      height: 180px;
+      border: none;
+      background: #ffffff;
+    }
+    body[data-theme="dark"] .preview-frame {
+      background: #020617;
+      color: #e5e7eb;
+    }
+    .empty-preview {
+      padding: 16px;
+      font-size: 11px;
+      opacity: 0.6;
+      text-align: center;
+    }
+    .hidden-input {
+      display: none;
+    }
+  </style>
+</head>
+<body data-theme="dark">
+  <div class="app-shell">
+    <header class="top-bar">
+      <div class="brand">
+        <div class="brand-mark">QJ</div>
+        <div>
+          <div class="brand-text-main">QuickJS</div>
+          <div class="brand-text-sub">Paste • Drop • Run</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <div class="badge">
+          <span class="badge-dot"></span>
+          <span>Sandboxed JS / HTML / CSS runner</span>
+        </div>
+        <button type="button" class="theme-toggle" id="themeToggle">
+          <div class="theme-pill active" data-theme-pill="dark">
+            <span class="theme-icon">🌙</span>
+            <span>Dark</span>
+          </div>
+          <div class="theme-pill" data-theme-pill="light">
+            <span class="theme-icon">☀️</span>
+            <span>Light</span>
+          </div>
+        </button>
+      </div>
+    </header>
+
+    <main class="main-grid">
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">Source</div>
+            <div class="panel-subtitle">Paste or drop your JS / HTML / CSS</div>
+          </div>
+          <div class="panel-header-right">
+            <div class="mode-toggle" id="inputModeToggle">
+              <button type="button" data-mode="paste" class="active">
+                <span class="icon">⌨️</span>
+                <span>Paste</span>
+              </button>
+              <button type="button" data-mode="files">
+                <span class="icon">📁</span>
+                <span>Files</span>
+              </button>
+            </div>
+            <div class="hint">Run with <span class="kbd">Ctrl ⏎</span> / <span class="kbd">⌘ ⏎</span></div>
+          </div>
+        </div>
+
+        <div class="editor-shell">
+          <div class="drop-zone" id="dropZone">
+            <div class="drop-main">
+              <div class="drop-left">
+                <div class="drop-title">Drop files or click to select</div>
+                <div class="drop-desc">
+                  Accepts <span>.html</span>, <span>.css</span>, <span>.js</span> • or just paste directly below
+                </div>
+              </div>
+              <div class="drop-right">
+                <span>Browse</span>
+                <span class="kbd">Enter</span>
+              </div>
+            </div>
+            <div class="file-list" id="fileList"></div>
+            <input type="file" class="hidden-input" id="fileInput" multiple accept=".html,.css,.js,text/html,text/css,application/javascript">
+          </div>
+
+          <div class="code-area-shell">
+            <div class="code-toolbar">
+              <div class="code-toolbar-left">
+                <span class="code-mode-label">Interpret as</span>
+                <select class="code-mode-select" id="codeModeSelect">
+                  <option value="auto">Auto (detect from content)</option>
+                  <option value="html">HTML page</option>
+                  <option value="js">JS only</option>
+                  <option value="css">CSS only</option>
+                </select>
+              </div>
+              <div class="code-toolbar-right">
+                <span class="hint">Paste mixed HTML / CSS / JS here</span>
+                <button type="button" class="run-button" id="runButton">
+                  <span class="icon">▶</span>
+                  <span>Run</span>
+                </button>
+              </div>
+            </div>
+            <textarea id="codeArea" class="code-area" spellcheck="false" placeholder="Paste your HTML / CSS / JS here or rely on dropped files.
+Examples:
+- HTML: &lt;!DOCTYPE html&gt; ... &lt;script&gt;console.log('Hello from QuickJS');&lt;/script&gt;
+- JS only: console.log('Hello from QuickJS');
+- CSS only: body { background: #111; color: #eee; }"></textarea>
+          </div>
+
+          <div class="preview-shell">
+            <div class="preview-toolbar">
+              <div class="preview-toolbar-left">
+                <span class="preview-label">Preview</span>
+                <span class="hint">HTML output (sandboxed iframe)</span>
+              </div>
+              <div class="preview-toolbar-right">
+                <span>Reloads on each run</span>
+              </div>
+            </div>
+            <div class="preview-frame-shell">
+              <iframe id="previewFrame" class="preview-frame"></iframe>
+              <div id="previewEmpty" class="empty-preview">No HTML yet. Paste HTML or include an HTML file, then run.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="console-shell">
+          <div class="console-toolbar">
+            <div class="console-toolbar-left">
+              <div class="console-title">Konsole</div>
+              <div class="console-subtitle">Captures console.log / errors / warnings</div>
+            </div>
+            <div class="console-toolbar-right">
+              <div class="console-mode-toggle" id="consoleModeToggle">
+                <button type="button" data-mode="gui" class="active">
+                  <span class="icon">🧩</span>
+                  <span>GUI</span>
+                </button>
+                <button type="button" data-mode="cli">
+                  <span class="icon">>_</span>
+                  <span>CLI</span>
+                </button>
+              </div>
+              <div class="console-actions">
+                <button type="button" class="console-clear" id="consoleClear">
+                  <span class="icon">⟲</span>
+                  <span>Clear</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="console-main">
+            <div id="consoleOutput" class="console-output"></div>
+            <div class="console-footer">
+              <div class="console-footer-left">
+                <div class="console-status-dot" id="consoleStatusDot"></div>
+                <span id="consoleStatusText">Idle • waiting for run</span>
+              </div>
+              <div class="console-footer-right">
+                <span>Sandbox: iframe allow-scripts</span>
+                <span>QuickJS</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (function() {
+      const body = document.body;
+      const themeToggle = document.getElementById('themeToggle');
+      const themePills = document.querySelectorAll('[data-theme-pill]');
+      const inputModeToggle = document.getElementById('inputModeToggle');
+      const dropZone = document.getElementById('dropZone');
+      const fileInput = document.getElementById('fileInput');
+      const fileList = document.getElementById('fileList');
+      const codeArea = document.getElementById('codeArea');
+      const codeModeSelect = document.getElementById('codeModeSelect');
+      const runButton = document.getElementById('runButton');
+      const previewFrame = document.getElementById('previewFrame');
+      const previewEmpty = document.getElementById('previewEmpty');
+      const consoleOutput = document.getElementById('consoleOutput');
+      const consoleModeToggle = document.getElementById('consoleModeToggle');
+      const consoleClear = document.getElementById('consoleClear');
+      const consoleStatusDot = document.getElementById('consoleStatusDot');
+      const consoleStatusText = document.getElementById('consoleStatusText');
+
+      let currentTheme = 'dark';
+      let inputMode = 'paste';
+      let consoleMode = 'gui';
+      let files = [];
+      let runCount = 0;
+
+      function setTheme(theme) {
+        currentTheme = theme;
+        body.setAttribute('data-theme', theme);
+        themePills.forEach(pill => {
+          const pillTheme = pill.getAttribute('data-theme-pill');
+          pill.classList.toggle('active', pillTheme === theme);
+        });
+      }
+
+      themeToggle.addEventListener('click', () => {
+        setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+      });
+
+      function setInputMode(mode) {
+        inputMode = mode;
+        inputModeToggle.querySelectorAll('button').forEach(btn => {
+          btn.classList.toggle('active', btn.getAttribute('data-mode') === mode);
+        });
+      }
+
+      inputModeToggle.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-mode]');
+        if (!btn) return;
+        setInputMode(btn.getAttribute('data-mode'));
+      });
+
+      function setConsoleMode(mode) {
+        consoleMode = mode;
+        consoleModeToggle.querySelectorAll('button').forEach(btn => {
+          btn.classList.toggle('active', btn.getAttribute('data-mode') === mode);
+        });
+        consoleOutput.dataset.mode = mode;
+      }
+
+      consoleModeToggle.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-mode]');
+        if (!btn) return;
+        setConsoleMode(btn.getAttribute('data-mode'));
+      });
+
+      function updateConsoleStatus(text, state) {
+        consoleStatusText.textContent = text;
+        if (state === 'running') {
+          consoleStatusDot.style.backgroundColor = '#22c55e';
+        } else if (state === 'error') {
+          consoleStatusDot.style.backgroundColor = '#ef4444';
+        } else {
+          consoleStatusDot.style.backgroundColor = '#64748b';
+        }
+      }
+
+      function clearConsole() {
+        consoleOutput.innerHTML = '';
+        updateConsoleStatus('Idle • waiting for run', 'idle');
+      }
+
+      consoleClear.addEventListener('click', () => {
+        clearConsole();
+      });
+
+      function addConsoleLine(type, prefix, content) {
+        const line = document.createElement('div');
+        line.className = 'console-line ' + type;
+        const prefixEl = document.createElement('span');
+        prefixEl.className = 'console-line-prefix';
+        prefixEl.textContent = prefix;
+        const contentEl = document.createElement('span');
+        contentEl.className = 'console-line-content';
+        if (consoleMode === 'gui' && typeof content === 'object' && content !== null) {
+          contentEl.textContent = JSON.stringify(content, null, 2);
+        } else {
+          contentEl.textContent = String(content);
+        }
+        line.appendChild(prefixEl);
+        line.appendChild(contentEl);
+        consoleOutput.appendChild(line);
+        consoleOutput.scrollTop = consoleOutput.scrollHeight;
+      }
+
+      function addSystemLine(text) {
+        addConsoleLine('system', '[system]', text);
+      }
+
+      function addErrorLine(error) {
+        addConsoleLine('error', '[error]', error);
+      }
+
+      function addWarnLine(warn) {
+        addConsoleLine('warn', '[warn]', warn);
+      }
+
+      function addLogLine(log) {
+        addConsoleLine('log', '[log]', log);
+      }
+
+      function addInfoLine(info) {
+        addConsoleLine('info', '[info]', info);
+      }
+
+      function renderFileList() {
+        fileList.innerHTML = '';
+        files.forEach((f, idx) => {
+          const pill = document.createElement('div');
+          pill.className = 'file-pill';
+          const type = document.createElement('span');
+          type.className = 'file-pill-type';
+          type.textContent = f.kind.toUpperCase();
+          const name = document.createElement('span');
+          name.className = 'file-pill-name';
+          name.textContent = f.file.name;
+          const remove = document.createElement('span');
+          remove.className = 'file-pill-remove';
+          remove.textContent = '✕';
+          remove.addEventListener('click', (e) => {
+            e.stopPropagation();
+            files.splice(idx, 1);
+            renderFileList();
+          });
+          pill.appendChild(type);
+          pill.appendChild(name);
+          pill.appendChild(remove);
+          fileList.appendChild(pill);
+        });
+      }
+
+      function classifyFile(file) {
+        const name = file.name.toLowerCase();
+        if (name.endsWith('.html') || file.type === 'text/html') return 'html';
+        if (name.endsWith('.css') || file.type === 'text/css') return 'css';
+        if (name.endsWith('.js') || file.type === 'application/javascript' || file.type === 'text/javascript') return 'js';
+        return 'unknown';
+      }
+
+      function handleFiles(selectedFiles) {
+        Array.from(selectedFiles).forEach(file => {
+          const kind = classifyFile(file);
+          if (kind === 'unknown') return;
+          files.push({ file, kind, content: null });
+        });
+        renderFileList();
+      }
+
+      dropZone.addEventListener('click', () => {
+        fileInput.click();
+      });
+
+      fileInput.addEventListener('change', (e) => {
+        if (!e.target.files) return;
+        handleFiles(e.target.files);
+        fileInput.value = '';
+      });
+
+      dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.borderStyle = 'solid';
+      });
+
+      dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.style.borderStyle = 'dashed';
+      });
+
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.borderStyle = 'dashed';
+        if (e.dataTransfer && e.dataTransfer.files) {
+          handleFiles(e.dataTransfer.files);
+        }
+      });
+
+      function readAllFiles() {
+        const promises = files.map(f => {
+          if (f.content != null) return Promise.resolve(f);
+          return new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              f.content = reader.result || '';
+              resolve(f);
+            };
+            reader.onerror = () => {
+              f.content = '';
+              resolve(f);
+            };
+            reader.readAsText(f.file);
+          });
+        });
+        return Promise.all(promises);
+      }
+
+      function detectModeFromContent(text) {
+        const trimmed = text.trim();
+        if (!trimmed) return 'auto';
+        if (/<!doctype html>|<html[\s>]|<body[\s>]/i.test(trimmed)) return 'html';
+        if (/^[\s\S]*\{[\s\S]*\}[\s\S]*$/.test(trimmed) && !/function|=>|var|let|const/.test(trimmed)) {
+          return 'css';
+        }
+        if (/console\.log|function|=>|var|let|const|document\.|window\./.test(trimmed)) {
+          return 'js';
+        }
+        return 'js';
+      }
+
+      function buildHTML({ htmlFromFiles, cssFromFiles, jsFromFiles, pasted, mode }) {
+        let html = '';
+        let css = '';
+        let js = '';
+
+        if (htmlFromFiles) html += htmlFromFiles;
+        if (cssFromFiles) css += cssFromFiles;
+        if (jsFromFiles) js += jsFromFiles;
+
+        const pastedText = pasted.trim();
+        const effectiveMode = mode === 'auto' ? detectModeFromContent(pastedText) : mode;
+
+        if (pastedText) {
+          if (effectiveMode === 'html') {
+            html = pastedText;
+          } else if (effectiveMode === 'css') {
+            css += '\n' + pastedText;
+          } else if (effectiveMode === 'js') {
+            js += '\n' + pastedText;
+          }
+        }
+
+        if (!html) {
+          html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>QuickJS Preview</title></head><body><pre>QuickJS: No HTML provided. JS may still run.</pre></body></html>';
+        }
+
+        const hasHead = /<head[\s>]/i.test(html);
+        const hasBody = /<body[\s>]/i.test(html);
+
+        let finalHTML = html;
+
+        if (!hasHead || !hasBody) {
+          finalHTML = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>QuickJS Preview</title></head><body>' + html + '</body></html>';
+        }
+
+        const styleTag = css ? '<style>' + css + '</style>' : '';
+        const scriptTag = js ? '<script>' + js + '</script>' : '';
+
+        finalHTML = finalHTML.replace('</head>', styleTag + '</head>');
+        finalHTML = finalHTML.replace('</body>', scriptTag + '</body>');
+
+        return finalHTML;
+      }
+
+      function run() {
+        runCount += 1;
+        clearConsole();
+        updateConsoleStatus('Running #' + runCount + ' • sandboxing code', 'running');
+        addSystemLine('Run #' + runCount + ' started at ' + new Date().toLocaleTimeString());
+
+        readAllFiles().then(() => {
+          let htmlFromFiles = '';
+          let cssFromFiles = '';
+          let jsFromFiles = '';
+
+          files.forEach(f => {
+            if (!f.content) return;
+            if (f.kind === 'html') htmlFromFiles += '\n' + f.content;
+            if (f.kind === 'css') cssFromFiles += '\n' + f.content;
+            if (f.kind === 'js') jsFromFiles += '\n' + f.content;
+          });
+
+          const pasted = codeArea.value || '';
+          const mode = codeModeSelect.value;
+
+          const finalHTML = buildHTML({
+            htmlFromFiles,
+            cssFromFiles,
+            jsFromFiles,
+            pasted,
+            mode
+          });
+
+          previewEmpty.style.display = 'none';
+
+          const iframe = previewFrame;
+          iframe.removeAttribute('src');
+          iframe.setAttribute('sandbox', 'allow-scripts');
+          iframe.srcdoc = finalHTML;
+
+          function attachConsole() {
+            try {
+              const win = iframe.contentWindow;
+              if (!win) {
+                addErrorLine('Unable to access iframe contentWindow');
+                updateConsoleStatus('Error • iframe unavailable', 'error');
+                return;
+              }
+
+              const originalConsole = win.console;
+              const methods = ['log', 'error', 'warn', 'info'];
+              methods.forEach(method => {
+                const original = originalConsole[method].bind(originalConsole);
+                win.console[method] = function() {
+                  const args = Array.from(arguments);
+                  args.forEach(arg => {
+                    if (method === 'log') addLogLine(arg);
+                    else if (method === 'error') addErrorLine(arg);
+                    else if (method === 'warn') addWarnLine(arg);
+                    else if (method === 'info') addInfoLine(arg);
+                  });
+                  original.apply(null, args);
+                };
+              });
+
+              win.onerror = function(message, source, lineno, colno, error) {
+                const details = message + ' (' + source + ':' + lineno + ':' + colno + ')';
+                addErrorLine(details);
+                if (error && error.stack) {
+                  addConsoleLine('error', '[stack]', error.stack);
+                }
+                updateConsoleStatus('Error • see Konsole', 'error');
+              };
+
+              addSystemLine('Sandbox ready. Console hooked.');
+              updateConsoleStatus('Completed • see Konsole and preview', 'idle');
+            } catch (e) {
+              addErrorLine('Failed to attach console: ' + e);
+              updateConsoleStatus('Error • console hook failed', 'error');
+            }
+          }
+
+          iframe.addEventListener('load', function onLoad() {
+            iframe.removeEventListener('load', onLoad);
+            attachConsole();
+          });
+        }).catch(err => {
+          addErrorLine('Run failed: ' + err);
+          updateConsoleStatus('Error • run failed', 'error');
+        });
+      }
+
+      runButton.addEventListener('click', () => {
+        run();
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault();
+          run();
+        }
+      });
+
+      setTheme('dark');
+      setInputMode('paste');
+      setConsoleMode('gui');
+      addSystemLine('QuickJS ready. Paste or drop code, then run with Ctrl/⌘ + Enter.');
+    })();
+  </script>
+</body>
+</html>
