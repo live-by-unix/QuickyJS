@@ -17,7 +17,7 @@ MIT [LICENSE](LICENSE) - free to use, modify, post.
 
 ## Previews
 <img width="2560" height="1258" alt="Screenshot 2026-06-25 at 1 47 00 PM" src="https://github.com/user-attachments/assets/02134d7e-3f0b-460c-8917-70ae22792c22" /> 
-Now we will run a HTML snippet:
+Now we will run a HTML snippet you can see in example-readme.html
 And just take a look!
 <img width="2560" height="1258" alt="Screenshot 2026-06-25 at 1 48 26 PM" src="https://github.com/user-attachments/assets/7af237f2-3f0d-41c8-9c6c-e5034ea26b7f" />
 
