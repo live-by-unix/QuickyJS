@@ -5,132 +5,181 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>QuickJS</title>
 <style>
-:root{--bg:#f5f5f7;--panel:rgba(255,255,255,.78);--text:#111827;--muted:#6b7280;--border:rgba(0,0,0,.08);--accent:#0071e3}
-.dark{--bg:#0f1115;--panel:rgba(26,28,34,.82);--text:#f3f4f6;--muted:#9ca3af;--border:rgba(255,255,255,.08);--accent:#0a84ff}
-*{box-sizing:border-box}html,body{height:100%;margin:0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text)}
-.app{height:100%;display:flex;flex-direction:column;padding:16px;gap:12px}
-.top{display:flex;justify-content:space-between;align-items:center}
-.btn,select{border:1px solid var(--border);background:var(--panel);padding:10px 14px;border-radius:14px;cursor:pointer}
-.grid{flex:1;display:grid;grid-template-columns:1fr 8px 1fr;min-height:0}
-.panel{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:12px;display:flex;flex-direction:column;min-height:0;backdrop-filter:blur(18px)}
-.dragger{background:#ccc22;cursor:col-resize}
-textarea{flex:1;width:100%;resize:none;border:1px solid var(--border);border-radius:12px;padding:12px;background:transparent;color:inherit;font-family:ui-monospace,monospace}
-.drop{margin-top:10px;border:2px dashed var(--border);border-radius:12px;padding:12px;text-align:center;cursor:pointer}
-.pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.pill{padding:5px 10px;border-radius:999px;background:rgba(127,127,127,.15);font-size:12px}
-iframe{flex:1;border:1px solid var(--border);border-radius:12px;background:#fff}
-.console{height:220px;overflow:auto;border:1px solid var(--border);border-radius:12px;padding:8px;font-family:ui-monospace,monospace;white-space:pre-wrap}
-.log{color:#16a34a}.warn{color:#d97706}.error{color:#dc2626}.info{color:#2563eb}
-@media(max-width:900px){.grid{grid-template-columns:1fr} .dragger{display:none}}
+:root{
+--bg:#f5f5f7;--panel:rgba(255,255,255,.82);--text:#111827;--border:rgba(0,0,0,.08);--accent:#0071e3;
+}
+body.dark{
+--bg:#0f1115;--panel:rgba(26,28,34,.82);--text:#f3f4f6;--border:rgba(255,255,255,.08);--accent:#0a84ff;
+}
+*{box-sizing:border-box}
+body{margin:0;height:100vh;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+.app{height:100%;padding:16px;display:flex;flex-direction:column;gap:12px}
+.top{display:flex;justify-content:space-between}
+button,select{padding:10px 14px;border-radius:12px;border:1px solid var(--border);cursor:pointer}
+.grid{flex:1;display:grid;grid-template-columns:50% 8px calc(50% - 8px);min-height:0}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:12px;display:flex;flex-direction:column;min-height:0}
+textarea{flex:1;width:100%;resize:none}
+.drop{margin-top:8px;padding:14px;border:2px dashed var(--border);border-radius:12px;text-align:center;cursor:pointer}
+.drop.dragging{border-color:var(--accent)}
+iframe{flex:1;border-radius:12px}
+.console{height:220px;overflow:auto;border:1px solid var(--border);padding:8px;font-family:monospace}
+.log{color:green}.warn{color:orange}.error{color:red}.info{color:blue}
+.pill{display:inline-block;padding:4px 8px;background:#9992;border-radius:999px;margin:4px;font-size:12px}
+#divider{cursor:col-resize}
 </style>
 </head>
 <body>
 <div class="app">
 <div class="top">
-<div><b>QuickJS</b> <span id="status">Idle</span></div>
+<div>QuickJS Fixed <span id="status">Idle</span></div>
 <div>
 <select id="mode"><option>Auto</option><option>HTML</option><option>CSS</option><option>JS</option></select>
-<button class="btn" id="consoleMode">GUI</button>
-<button class="btn" id="theme">Theme</button>
-<button class="btn" id="run">Run ⌘/Ctrl+Enter</button>
+<button id="themeBtn">Theme</button>
+<button id="runBtn">Run</button>
 </div>
 </div>
+
 <div class="grid" id="grid">
 <div class="panel">
-<textarea id="editor" placeholder="Paste HTML/CSS/JS"></textarea>
+<textarea id="editor"></textarea>
 <div class="drop" id="drop">Drop files or click</div>
-<input id="files" type="file" multiple accept=".html,.css,.js" hidden>
-<div class="pills" id="pills"></div>
+<input type="file" id="fileInput" hidden multiple accept=".html,.css,.js">
+<div id="pills"></div>
 </div>
-<div class="dragger" id="drag"></div>
+<div id="divider"></div>
 <div class="panel">
 <iframe id="preview" sandbox="allow-scripts"></iframe>
-<div style="height:8px"></div>
-<div>
-<button class="btn" id="clearConsole">Clear Console</button>
-</div>
 <div class="console" id="console"></div>
 </div>
 </div>
 </div>
-<script>
-const $=id=>document.getElementById(id);
-let files=[],cli=false;
-try{editor.value=localStorage.qjs_code||'';document.body.classList.toggle('dark',localStorage.qjs_theme==='dark')}catch(e){}
 
-function line(type,msg){
- const d=document.createElement('div');
- d.className=cli?'':type;
- d.textContent=(cli?'':'['+type.toUpperCase()+'] ')+msg;
- $('console').appendChild(d);
- $('console').scrollTop=1e9;
+<script>
+const fileInput=document.getElementById('fileInput');
+const drop=document.getElementById('drop');
+const fileStore=new Map();
+
+function setTheme(theme){
+ document.body.classList.toggle('dark',theme==='dark');
+ localStorage.setItem('qjs_theme',theme);
 }
-window.addEventListener('message',e=>{
- const d=e.data;if(!d||d.source!=='quickjs')return;
- if(d.type==='status')$('status').textContent=d.value;
- else line(d.type,(d.args||[]).join(' '));
+setTheme(localStorage.getItem('qjs_theme')||'light');
+
+document.getElementById('themeBtn').onclick=()=>{
+ setTheme(document.body.classList.contains('dark')?'light':'dark');
+};
+
+drop.onclick=()=>fileInput.click();
+
+['dragenter','dragover','dragleave','drop'].forEach(ev=>{
+ drop.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();});
 });
 
-function build(){
- let html='',css='',js='';
- files.forEach(f=>{
-  if(f.name.endsWith('.html'))html+=f.content+'\n';
-  if(f.name.endsWith('.css'))css+=f.content+'\n';
-  if(f.name.endsWith('.js'))js+=f.content+'\n';
- });
- const txt=editor.value;
- localStorage.qjs_code=txt;
- const m=$('mode').value;
- if(m==='HTML')html+=txt;
- else if(m==='CSS')css+=txt;
- else if(m==='JS')js+=txt;
- else{
-   if(/<\/?[a-z]/i.test(txt)) html+=txt;
-   else if(/[{}]/.test(txt)&&!/(function|=>|console\.)/.test(txt)) css+=txt;
-   else js+=txt;
- }
- if(!html.trim()) html='<div style="padding:20px;font-family:sans-serif">QuickJS Preview</div>';
- return `<!doctype html><html><head><style>${css}</style></head><body>${html}
-<script>
-const send=(t,a)=>parent.postMessage({source:'quickjs',type:t,args:a},'*');
-['log','warn','error','info'].forEach(k=>{const o=console[k];console[k]=(...a)=>{send(k,a.map(v=>String(v)));o.apply(console,a)}});
-window.onerror=(m)=>send('error',[m]);
-parent.postMessage({source:'quickjs',type:'status',value:'Running'},'*');
-<\/script>
-<script>${js}<\/script></body></html>`;
-}
-function run(){ $('console').innerHTML=''; $('preview').srcdoc=build(); }
+drop.addEventListener('dragenter',()=>drop.classList.add('dragging'));
+drop.addEventListener('dragleave',()=>drop.classList.remove('dragging'));
+drop.addEventListener('drop',e=>{
+ drop.classList.remove('dragging');
+ loadFiles([...e.dataTransfer.files]);
+});
 
-$('run').onclick=run;
-$('theme').onclick=()=>{document.body.classList.toggle('dark');localStorage.qjs_theme=document.body.classList.contains('dark')?'dark':'light'};
-$('consoleMode').onclick=e=>{cli=!cli;e.target.textContent=cli?'CLI':'GUI'};
-$('clearConsole').onclick=()=>$('console').innerHTML='';
+fileInput.addEventListener('change',e=>loadFiles([...e.target.files]));
 
-drop.onclick=()=>files.click();
-files.onchange=e=>loadFiles([...e.target.files]);
-['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>e.preventDefault()));
-drop.addEventListener('drop',e=>{e.preventDefault();loadFiles([...e.dataTransfer.files])});
-
-function loadFiles(arr){
- arr.forEach(file=>{
+function loadFiles(files){
+ files.forEach(file=>{
   const r=new FileReader();
   r.onload=()=>{
-   files.push({name:file.name,content:r.result});
-   const p=document.createElement('div');p.className='pill';p.textContent=file.name;pills.appendChild(p);
+   fileStore.set(file.name,{name:file.name,content:r.result});
+   renderPills();
   };
   r.readAsText(file);
  });
 }
-document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')run()});
 
-// splitter
-const drag=$('drag'),grid=$('grid');
-let down=false;
-drag.onmousedown=()=>down=true;
-window.onmouseup=()=>down=false;
+function renderPills(){
+ const pills=document.getElementById('pills');
+ pills.innerHTML='';
+ fileStore.forEach(f=>{
+  const d=document.createElement('span');
+  d.className='pill';
+  d.textContent=f.name;
+  pills.appendChild(d);
+ });
+}
+
+function serialize(v){
+ try{return typeof v==='object'?JSON.stringify(v,null,2):String(v);}
+ catch{return String(v);}
+}
+
+window.addEventListener('message',e=>{
+ const d=e.data;
+ if(!d||d.source!=='quickjs') return;
+ if(d.type==='status'){document.getElementById('status').textContent=d.value;return;}
+ const div=document.createElement('div');
+ div.className=d.type;
+ div.textContent='['+d.type.toUpperCase()+'] '+(d.args||[]).join(' ');
+ document.getElementById('console').appendChild(div);
+});
+
+function build(){
+ let html='',css='',js='';
+ fileStore.forEach(f=>{
+  if(f.name.endsWith('.html')) html+=f.content;
+  if(f.name.endsWith('.css')) css+=f.content;
+  if(f.name.endsWith('.js')) js+=f.content;
+ });
+
+ const txt=document.getElementById('editor').value.trim();
+ const mode=document.getElementById('mode').value;
+
+ if(mode==='HTML') html+=txt;
+ else if(mode==='CSS') css+=txt;
+ else if(mode==='JS') js+=txt;
+ else{
+   if(txt.startsWith('<')) html+=txt;
+   else if(txt.includes('{')&&txt.includes('}')&&!txt.includes('function')) css+=txt;
+   else js+=txt;
+ }
+
+ if(!html) html='<div style="padding:20px">QuickJS Preview</div>';
+
+ const themeCss=document.body.classList.contains('dark')
+ ? 'body{background:#0f1115;color:#f3f4f6}'
+ : 'body{background:#fff;color:#111827}';
+
+ return `<!doctype html><html><head><style>${themeCss}${css}</style></head><body>${html}
+ <script>
+ const send=(t,a)=>parent.postMessage({source:'quickjs',type:t,args:a},'*');
+ function s(v){try{return typeof v==='object'?JSON.stringify(v):String(v)}catch{return String(v)}}
+ ['log','warn','error','info'].forEach(k=>{
+  const o=console[k];
+  console[k]=(...a)=>{send(k,a.map(s));o.apply(console,a);};
+ });
+ window.onerror=(m)=>send('error',[m]);
+ parent.postMessage({source:'quickjs',type:'status',value:'Running'},'*');
+ <\/script>
+ <script>${js}<\/script></body></html>`;
+}
+
+document.getElementById('runBtn').onclick=()=>{
+ document.getElementById('console').innerHTML='';
+ document.getElementById('preview').srcdoc=build();
+};
+
+document.addEventListener('keydown',e=>{
+ if((e.ctrlKey||e.metaKey)&&e.key==='Enter') document.getElementById('runBtn').click();
+});
+
+const divider=document.getElementById('divider');
+const grid=document.getElementById('grid');
+let dragging=false;
+divider.onmousedown=()=>dragging=true;
+window.onmouseup=()=>dragging=false;
 window.onmousemove=e=>{
- if(!down||innerWidth<900)return;
+ if(!dragging||innerWidth<900) return;
  const p=Math.max(20,Math.min(80,e.clientX/innerWidth*100));
- grid.style.gridTemplateColumns=`${p}fr 8px ${100-p}fr`;
+ grid.style.gridTemplateColumns=`${p}% 8px ${100-p}%`;
 };
 </script>
-</body></html>
+</body>
+</html>
